@@ -13,12 +13,15 @@ import com.acod_bi.Executable;
 import com.acod_bi.SQLScriptExecutor;
 import com.acod_bi.SQLDoubleConnection;
 
+
+// +++++ A simplifier en utilisant SQLDoubleScriptExecutor
+
 /** 
  * ACOD Create a Denodo datamart from script
  */
 public class DenDtmCreator extends Executable {
 
-	protected SQLDoubleConnection sqlDoubleConnection = new SQLDoubleConnection(this);
+	protected SQLDoubleConnection sqlDoubleConnection = new SQLDoubleConnection();
 	
 	String sSrcDir;
 	String sMainScript;
@@ -32,7 +35,7 @@ public class DenDtmCreator extends Executable {
 	    addParam("sd", "Source directory with create datamart SQL files", false, "source directory");
 	    addParam("m", "Main script calling others SQL files to create datamart", true, "main script");
 	    
-	    sqlDoubleConnection.executableSetParams();
+	    sqlDoubleConnection.executableSetParams(this);
 	}
 	
 	protected void setVariablesFromParameters() {
@@ -56,7 +59,7 @@ public class DenDtmCreator extends Executable {
 	    	exitWithError();
 		}
 
-		sqlDoubleConnection.executableSetVariablesFromParameters();
+		sqlDoubleConnection.executableSetVariablesFromParameters(this);
 	}
 	
 	protected void showParameters() {
@@ -64,7 +67,7 @@ public class DenDtmCreator extends Executable {
 			println("Source directory : \"" + sSrcDir + "\"");
 			println("Main script : \"" + sMainScript + "\"");
 		}
-		sqlDoubleConnection.executableShowParameters();
+		sqlDoubleConnection.executableShowParameters(this);
 		super.showParameters();
         if(bVerbose)
         {
@@ -78,14 +81,14 @@ public class DenDtmCreator extends Executable {
 	
 	protected SQLScriptExecutor buildSQLScriptExecutor()
 	{
-        SQLScriptExecutor newScriptExecutor = new SQLScriptExecutor();
+        SQLScriptExecutor newScriptExecutor = new SQLScriptExecutor(this, null);
         newScriptExecutor.bQuiet = this.bQuiet;
         newScriptExecutor.bShowSQL = this.bShowSQL;
 		return newScriptExecutor;
 	}
 	
 	protected void doAction() {
-		sqlDoubleConnection.loadDriver();
+		sqlDoubleConnection.loadDriver(this);
 		
         SQLScriptExecutor denScriptExecutor = buildSQLScriptExecutor();
         denScriptExecutor.setPatternQueryEnd(";$");
@@ -97,12 +100,12 @@ public class DenDtmCreator extends Executable {
         
     	// Create Connection to database
         try(
-        		Connection denConn = sqlDoubleConnection.getDenConnection(); 
-        		Connection dtmConn = sqlDoubleConnection.getDtmConnection(); 
+        		Connection denConn = sqlDoubleConnection.getDenConnection(this); 
+        		Connection dtmConn = sqlDoubleConnection.getDtmConnection(this); 
         )
         {
-        	denScriptExecutor.dbConnection = denConn;
-        	dtmScriptExecutor.dbConnection = dtmConn;
+        	denScriptExecutor.connection = denConn;
+        	dtmScriptExecutor.connection = dtmConn;
         	
     		Pattern patternPromptLine = Pattern.compile("^prompt |^prompt$");
     		Pattern patternCommentLine = Pattern.compile("^--|^--$");
@@ -127,7 +130,7 @@ public class DenDtmCreator extends Executable {
 	                        {
 			        			println("");
 		                		File scriptDen = new File(sSrcDir + File.separator + line.substring(matcherStartDen.end()));
-	                        	denScriptExecutor.executeScript(this, scriptDen);
+	                        	denScriptExecutor.executeScript(scriptDen);
 		                	}
 		                	else
 		                	{
@@ -136,7 +139,7 @@ public class DenDtmCreator extends Executable {
 		                        {
 				        			println("");
 			                		File scriptDtm = new File(sSrcDir + File.separator + line.substring(matcherStartDtm.end()));
-		                        	dtmScriptExecutor.executeScript(this, scriptDtm);
+		                        	dtmScriptExecutor.executeScript(scriptDtm);
 			                	}
 			                	else
 			                	{

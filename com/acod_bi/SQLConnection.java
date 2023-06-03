@@ -7,17 +7,15 @@ import java.sql.SQLException;
 /** 
  * ACOD Link between connection parameters from executable parameter and SQL connection
  */
-public class SQLConnection {
-	public SQLConnection(){}
-	
-	public SQLConnection(Executable newExecutable)
+public class SQLConnection implements ExecutableChild {
+	public SQLConnection()
 	{
-		SetExecutable(newExecutable);
 	}
 	
-	protected Executable executable;
-	public void SetExecutable(Executable newExecutable) { executable = newExecutable; }
-	
+    public void setExecutable(Executable executable) {
+        executable.addExecutableChild(this);
+    }
+    
 	public String sRdbmsId;
 	public String sDriverClassName;
 	public String sRdbmsName;
@@ -26,13 +24,13 @@ public class SQLConnection {
 	public String sUser;
 	public String sPassword;
 
-	public void executableSetParams() {
+	public void executableSetParams(Executable executable) {
 		executable.addParam("c", "Database url", false, "database url");
 		executable.addParam("u", "Database user", false, "user");
 		executable.addParam("p", "Database password", false, "password");
 	}
 	
-	public void executableSetVariablesFromParameters() {
+	public void executableSetVariablesFromParameters(Executable executable) {
 	    sDbUrl = executable.getParamValue("c");
 	    if(sDbUrl == null)
 	    {
@@ -69,7 +67,7 @@ public class SQLConnection {
 		}
 	}
 	
-	public void executableShowParameters() {
+	public void executableShowParameters(Executable executable) {
 		if(!executable.bQuiet) {
 			if(sPassword == null)
 				executable.println("Database Url : ###");
@@ -82,17 +80,18 @@ public class SQLConnection {
 		}
 	}
 	
-	public void loadDriver() {
+	public void loadDriver(Executable executable) {
         if(!executable.bQuiet) executable.println("Loading " + sRdbmsName + " Driver ... ");
         try {
             Class.forName(sDriverClassName);
         } catch (Exception e) {
-        	executable.printlnErr("Error loading " + sRdbmsName + " Driver ... " + e.getMessage());
-        	Executable.exitWithError();
+            throw new RuntimeException("Error loading " + sRdbmsName + " Driver ... ", e);
+        	//-----executable.printlnErr("Error loading " + sRdbmsName + " Driver ... " + e.getMessage());
+        	//-----Executable.exitWithError();
         }
 	}
 	
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection(Executable executable) throws SQLException {
     	// Connecting to database
         if(!executable.bQuiet) executable.println("Connecting to database ... ");
     	return DriverManager.getConnection(sDbUrl, sUser, sPassword);

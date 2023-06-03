@@ -5,18 +5,12 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /** 
- * ACOD Link between connection parameters from executable parameter and double SQL connection (Denodo and direct connection to datamart database)
+ * ACOD Link between connection parameters from executable parameter and double SQL connection (Denodo and direct connection to target database)
  */
-public class SQLDoubleConnection {
-	public SQLDoubleConnection(){}
-	
-	public SQLDoubleConnection(Executable newExecutable)
+public class SQLDoubleConnection implements ExecutableChild {
+	public SQLDoubleConnection()
 	{
-		SetExecutable(newExecutable);
 	}
-	
-	protected Executable executable;
-	public void SetExecutable(Executable newExecutable) { executable = newExecutable; }
 	
 	public String sDenRdbmsId = "den";
 	public String sDenDriverClassName = "com.denodo.vdp.jdbc.Driver";
@@ -26,15 +20,19 @@ public class SQLDoubleConnection {
 	public String sDenUser;
 	public String sDenPassword;
 	
-	public String sDtmRdbmsId;
-	public String sDtmDriverClassName;
-	public String sDtmRdbmsName;
+	public String sRdbmsId;
+	public String sRdbDriverClassName;
+	public String sRdbmsName;
 
-	public String sDtmDbUrl;
-	public String sDtmUser;
-	public String sDtmPassword;
+	public String sRdbUrl;
+	public String sRdbUser;
+	public String sRdbPassword;
 	
-	public void executableSetParams() {
+    public void setExecutable(Executable executable) {
+        executable.addExecutableChild(this);
+    }
+    
+	public void executableSetParams(Executable executable) {
 		executable.addParam("dc", "Denodo database url", true, "Denodo database url");
 		executable.addParam("du", "Denodo user", false, "Denodo user");
 		executable.addParam("dp", "Denodo password", false, "Denodo password");
@@ -43,7 +41,7 @@ public class SQLDoubleConnection {
 		executable.addParam("tp", "Target password", false, "Target password"); 
 	}
 	
-	public void executableSetVariablesFromParameters() {
+	public void executableSetVariablesFromParameters(Executable executable) {
 	    sDenDbUrl = executable.getParamValue("dc");
 	    if(sDenDbUrl == null)
 	    {
@@ -52,34 +50,46 @@ public class SQLDoubleConnection {
 	    sDenUser = executable.getParamValue("du");
 	    sDenPassword = executable.getParamValue("dp");
 	    
-	    sDtmDbUrl = executable.getParamValue("tc");
-	    if(sDtmDbUrl == null)
+	    sRdbUrl = executable.getParamValue("tc");
+	    if(sRdbUrl == null)
 	    {
 	    	executable.exitWithParametersError("Missing parameter -tc");
 	    }
-		sDtmUser = executable.getParamValue("tu");
-		sDtmPassword = executable.getParamValue("tp");
+		sRdbUser = executable.getParamValue("tu");
+		sRdbPassword = executable.getParamValue("tp");
 		
-		if((sDtmRdbmsId==null)||(sDtmDriverClassName==null)||(sDtmRdbmsName==null))
+		if((sRdbmsId==null)||(sRdbDriverClassName==null)||(sRdbmsName==null))
 		{
-			if(sDtmDbUrl.toLowerCase().startsWith("jdbc:oracle:"))
+			if(sRdbUrl.toLowerCase().startsWith("jdbc:oracle:"))
 			{
-				if(sDtmRdbmsId==null) 
-					sDtmRdbmsId = "ora";
-				if(sDtmDriverClassName==null) 
-					sDtmDriverClassName = "oracle.jdbc.OracleDriver";
-				if(sDtmRdbmsName==null) 
-					sDtmRdbmsName = "Oracle";
+				if(sRdbmsId==null) 
+					sRdbmsId = "ora";
+				if(sRdbDriverClassName==null) 
+					sRdbDriverClassName = "oracle.jdbc.OracleDriver";
+				if(sRdbmsName==null) 
+					sRdbmsName = "Oracle";
 			}
 			else 
 			{
-				executable.printlnErr("Unhandled protocol in jdbc url " + sDtmDbUrl);
-				Executable.exitWithError();
+			    if(sRdbUrl.toLowerCase().startsWith("jdbc:postgresql:"))
+	            {
+	                if(sRdbmsId==null) 
+	                    sRdbmsId = "pg";
+	                if(sRdbDriverClassName==null) 
+	                    sRdbDriverClassName = "org.postgresql.Driver";
+	                if(sRdbmsName==null) 
+	                    sRdbmsName = "PostgreSQL";
+	            }
+			    else
+			    {
+    				executable.printlnErr("Unhandled protocol in jdbc url " + sRdbUrl);
+    				Executable.exitWithError();
+			    }
 			}
 		}
 	}
 	
-	public void executableShowParameters() {
+	public void executableShowParameters(Executable executable) {
 		if(!executable.bQuiet) {
 			if(sDenPassword == null)
 				executable.println("Denodo Database Url : ###");
@@ -90,19 +100,19 @@ public class SQLDoubleConnection {
 			if(sDenPassword != null)
 				executable.println("Denodo Password: ###");
 			
-			executable.println("Datamart RDBMS : " + sDtmRdbmsName);
-			if(sDtmPassword == null)
-				executable.println("Datamart Database Url : ###");
+			executable.println("RDBMS : " + sRdbmsName);
+			if(sRdbPassword == null)
+				executable.println("RDB Url : ###");
 			else
-				executable.println("Datamart Database Url : " + sDtmDbUrl);
-			if(sDtmUser != null)
-				executable.println("Datamart User: " + sDtmUser);
-			if(sDtmPassword != null)
-				executable.println("Datamart Password: ###");
+				executable.println("RDB Url : " + sRdbUrl);
+			if(sRdbUser != null)
+				executable.println("RDB User: " + sRdbUser);
+			if(sRdbPassword != null)
+				executable.println("RDB Password: ###");
 		}
 	}
 	
-	public void loadDriver() {
+	public void loadDriver(Executable executable) {
         if(!executable.bQuiet) executable.println("Loading " + sDenRdbmsName + " Driver ... ");
         try {
             Class.forName(sDenDriverClassName);
@@ -111,23 +121,23 @@ public class SQLDoubleConnection {
 			Executable.exitWithError();
         }
 
-        if(!executable.bQuiet) executable.println("Loading " + sDtmRdbmsName + " Driver ... ");
+        if(!executable.bQuiet) executable.println("Loading " + sRdbmsName + " Driver ... ");
         try {
-            Class.forName(sDtmDriverClassName);
+            Class.forName(sRdbDriverClassName);
         } catch (Exception e) {
-        	executable.printlnErr("Error loading " + sDtmRdbmsName + " Driver ... " + e.getMessage());
+        	executable.printlnErr("Error loading " + sRdbmsName + " Driver ... " + e.getMessage());
         	Executable.exitWithError();
         }
 	}
 	
-    public Connection getDenConnection() throws SQLException {
+    public Connection getDenConnection(Executable executable) throws SQLException {
         if(!executable.bQuiet) executable.println("Connecting to Denodo database ... ");
     	return DriverManager.getConnection(sDenDbUrl, sDenUser, sDenPassword);
         }
 	
-    public Connection getDtmConnection() throws SQLException {
-        if(!executable.bQuiet) executable.println("Connecting directly to datamart database ... ");
-    	return DriverManager.getConnection(sDtmDbUrl, sDtmUser, sDtmPassword);
+    public Connection getDtmConnection(Executable executable) throws SQLException {
+        if(!executable.bQuiet) executable.println("Connecting directly to relationnal database ... ");
+    	return DriverManager.getConnection(sRdbUrl, sRdbUser, sRdbPassword);
         }
 	
 }

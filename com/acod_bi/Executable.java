@@ -17,6 +17,12 @@ import java.util.Vector;
 import java.util.Map.Entry;
 
 public class Executable {
+    protected List<ExecutableChild> childList = new LinkedList<ExecutableChild>();
+    
+    public void addExecutableChild(ExecutableChild executableChild) {
+        childList.add(executableChild);
+    }
+    
 	class ExecParam{
 		String sCode;
 		String sDesc;
@@ -182,6 +188,9 @@ usage: java com.acod_bi.exec_rs.ExecRS [-options]
 		addParam("verbose", "Be verbose", false, null);
 		addParam("quiet", "Be quiet", false, null);
 		addParam("log", "Full log file path", false, "log full path");
+        for (ExecutableChild executableChild : childList) {
+            executableChild.executableSetParams(this);
+        }
 	}
 	
 	protected boolean helpWitgNoArg() {
@@ -192,7 +201,9 @@ usage: java com.acod_bi.exec_rs.ExecRS [-options]
 	protected void setVariablesFromParameters() {
 		// String sArg1 = commandLine.getArgs()[0];
 		// sDestDir = commandLine.getOptionValue("destdir", ".");
-
+        for (ExecutableChild executableChild : childList) {
+            executableChild.executableSetVariablesFromParameters(this);
+        }
 	}
 	
 	// Overload with specific parameters and options 
@@ -207,6 +218,9 @@ usage: java com.acod_bi.exec_rs.ExecRS [-options]
 	    }
         if(!bQuiet && sLogFile != null) 
         	println("Log File \"" + sLogFile + "\"");
+        for (ExecutableChild executableChild : childList) {
+            executableChild.executableShowParameters(this);
+        }
 	}
 	
 	public static void exitWithError() {
@@ -260,8 +274,8 @@ usage: java com.acod_bi.exec_rs.ExecRS [-options]
         	outLog.print(sText);
 	}
 	
-	protected boolean bVerbose;
-	protected boolean bQuiet;
+	public boolean bVerbose;
+	public boolean bQuiet;
 	
 	// Une amelioration consisterait a sortir dans des classes specifiques println et logs  
 	protected String sLogFile = null;
